@@ -1,30 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: 'IBM Plex Sans Arabic', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
   
-  --color-bg: #0a0a0b;
-  --color-bg-elevated: #141416;
-  --color-bg-hover: #1c1c1f;
-  --color-border: #27272a;
-  --color-border-hover: #3f3f46;
+  color-scheme: dark;
+  --color-bg: #09090b; /* zinc-950 */
+  --color-bg-elevated: #18181b; /* zinc-900 */
+  --color-bg-hover: #1f1f23; /* subtle hover */
+  --color-border: #27272a; /* zinc-800 */
+  --color-border-hover: #3f3f46; /* zinc-700 */
   
-  --color-text: #fafafa;
-  --color-text-muted: #a1a1aa;
-  --color-text-dim: #71717a;
+  --color-text: #f4f4f5; /* zinc-100 */
+  --color-text-muted: #a1a1aa; /* zinc-400 */
+  --color-text-dim: #71717a; /* zinc-500 */
   
-  --color-accent: #10b981;
-  --color-accent-hover: #059669;
-  --color-accent-muted: #10b98133;
+  --color-accent: #ffffff; /* primary action in dark */
+  --color-accent-hover: #e4e4e7; /* zinc-200 */
+  --color-accent-muted: rgba(255, 255, 255, 0.08);
   
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-danger-muted: #ef444433;
+  --color-danger: #ef4444; /* red-500 */
+  --color-danger-hover: #dc2626; /* red-600 */
+  --color-danger-muted: rgba(239, 68, 68, 0.16);
   
-  --color-warning: #f59e0b;
-  --color-warning-muted: #f59e0b33;
-  --color-live: #ef4444;
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-warning-muted: rgba(245, 158, 11, 0.16);
+  --color-live: #10b981; /* emerald-500 */
+  --color-live-muted: rgba(16, 185, 129, 0.16);
+  --color-chip-selected-bg: #1f1f23;
+  --color-chip-selected-border: #3f3f46;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #fafafa; /* zinc-50 */
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f4f4f5; /* zinc-100 */
+  --color-border: #e4e4e7; /* zinc-200 */
+  --color-border-hover: #d4d4d8; /* zinc-300 */
+  
+  --color-text: #18181b; /* zinc-900 */
+  --color-text-muted: #52525b; /* zinc-600 */
+  --color-text-dim: #a1a1aa; /* zinc-400 */
+  
+  --color-accent: #18181b; /* primary action in light */
+  --color-accent-hover: #0f0f10; /* near black */
+  --color-accent-muted: rgba(0, 0, 0, 0.06);
+  
+  --color-danger: #ef4444; /* red-500 for consistency */
+  --color-danger-hover: #b91c1c;
+  --color-danger-muted: rgba(220, 38, 38, 0.12);
+  
+  --color-warning: #d97706;
+  --color-warning-muted: rgba(217, 119, 6, 0.16);
+  --color-live: #10b981;
+  --color-live-muted: rgba(16, 185, 129, 0.18);
+  --color-chip-selected-bg: #e5e7eb; /* zinc-200 */
+  --color-chip-selected-border: #d4d4d8; /* zinc-300 */
 }
 
 * {
@@ -88,3 +120,25 @@ body {
   animation: fade-in 0.3s ease-out;
 }
 
+.timer-display {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  text-rendering: optimizeLegibility;
+}
+
+.timer-colon {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 6px;
+}
+
+.timer-colon span {
+  width: 8px;
+  height: 12px;
+  border-radius: 999px;
+  background: currentColor;
+}

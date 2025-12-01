@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createProfile, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useLanguage } from '@/hooks/useLanguage'
 import { LanguageSelect, MultiLanguageSelect } from '@/components/LanguageSelect'
 
 export function OnboardingPage() {
   const navigate = useNavigate()
   const { refreshProfile } = useAuth()
+  const { t } = useLanguage()
 
   const [slug, setSlug] = useState('')
   const [name, setName] = useState('')
@@ -80,7 +82,11 @@ export function OnboardingPage() {
         <div className="text-center mb-8">
           <div
             className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'var(--color-accent-muted)' }}
+            style={{
+              background: 'var(--color-bg-hover)',
+              border: '1px solid var(--color-border)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+            }}
           >
             <svg
               width="32"
@@ -89,17 +95,17 @@ export function OnboardingPage() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              style={{ color: 'var(--color-accent)' }}
+              style={{ color: 'var(--color-text)' }}
             >
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>
-            Complete Your Profile
+            {t.OnboardingPage.heading_profile}
           </h1>
           <p style={{ color: 'var(--color-text-muted)' }}>
-            Set up your speaker profile to start broadcasting
+            {t.OnboardingPage.subtitle_profile}
           </p>
         </div>
 
@@ -119,7 +125,7 @@ export function OnboardingPage() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                Display Name
+                {t.OnboardingPage.label_displayName}
               </label>
               <input
                 id="name"
@@ -144,9 +150,9 @@ export function OnboardingPage() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                Unique URL Slug
+                {t.OnboardingPage.label_slug}
               </label>
-              <div className="relative">
+              <div className="relative" dir="ltr">
                 <span
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-sm"
                   style={{ color: 'var(--color-text-dim)' }}
@@ -169,21 +175,21 @@ export function OnboardingPage() {
                 />
               </div>
               <p className="text-xs mt-2" style={{ color: 'var(--color-text-dim)' }}>
-                3-30 characters, lowercase letters, numbers, and hyphens only
+                {t.OnboardingPage.helper_slug}
               </p>
             </div>
 
             {/* Input Language */}
             <LanguageSelect
               id="inputLang"
-              label="Speaking Language"
+              label={t.OnboardingPage.label_speakingLang}
               value={inputLang}
               onChange={setInputLang}
             />
 
             {/* Output Languages */}
             <MultiLanguageSelect
-              label="Translation Languages"
+              label={t.OnboardingPage.label_translationLang}
               value={outputLangs}
               onChange={setOutputLangs}
               excludeLanguage={inputLang}
@@ -207,7 +213,7 @@ export function OnboardingPage() {
                 color: 'var(--color-bg)',
               }}
             >
-              {loading ? 'Creating Profile...' : 'Complete Setup'}
+              {loading ? t.common.loading : t.OnboardingPage.button_complete}
             </button>
           </form>
         </div>
@@ -215,4 +221,3 @@ export function OnboardingPage() {
     </div>
   )
 }
-

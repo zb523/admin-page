@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useStore } from '@/store/useStore'
+import { useLanguage } from '@/hooks/useLanguage'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -9,20 +10,21 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { signOut } = useAuth()
-  const { user, isLive } = useStore()
+  const { user } = useStore()
+  const { t } = useLanguage()
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { path: '/history', label: 'History', icon: HistoryIcon },
-    { path: '/settings', label: 'Settings', icon: SettingsIcon },
+    { path: '/dashboard', label: t.DashboardPage.title, icon: DashboardIcon },
+    { path: '/history', label: t.HistoryPage.title, icon: HistoryIcon },
+    { path: '/settings', label: t.SettingsPage.title, icon: SettingsIcon },
   ]
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--color-bg)' }}>
       {/* Sidebar */}
       <aside
-        className="w-64 flex flex-col fixed left-0 top-0 bottom-0"
-        style={{ background: 'var(--color-bg-elevated)', borderRight: '1px solid var(--color-border)' }}
+        className="w-64 flex flex-col fixed start-0 top-0 bottom-0"
+        style={{ background: 'var(--color-bg-elevated)', borderInlineEnd: '1px solid var(--color-border)' }}
       >
         {/* Logo */}
         <div className="p-6 flex items-center gap-3">
@@ -34,20 +36,9 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div>
             <h1 className="font-semibold" style={{ color: 'var(--color-text)' }}>Baian</h1>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Speaker Dashboard</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t.common.speaker_dashboard}</p>
           </div>
         </div>
-
-        {/* Live indicator */}
-        {isLive && (
-          <div
-            className="mx-4 mb-4 px-3 py-2 rounded-lg flex items-center gap-2 animate-pulse-live"
-            style={{ background: 'var(--color-danger-muted)' }}
-          >
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--color-live)' }} />
-            <span className="text-sm font-medium" style={{ color: 'var(--color-live)' }}>Live Now</span>
-          </div>
-        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-3">
@@ -99,13 +90,13 @@ export function Layout({ children }: LayoutProps) {
               border: '1px solid var(--color-border)',
             }}
           >
-            Sign Out
+            {t.common.sign_out}
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 ms-64 p-8">
         <div className="max-w-4xl mx-auto">
           {children}
         </div>
@@ -143,4 +134,3 @@ function SettingsIcon() {
     </svg>
   )
 }
-

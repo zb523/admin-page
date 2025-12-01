@@ -103,6 +103,12 @@ export async function toggleMicrophone(room: Room): Promise<boolean> {
   return !currentlyEnabled
 }
 
+// Switch active microphone device
+export async function setAudioInputDevice(room: Room, deviceId: string): Promise<void> {
+  await room.switchActiveDevice('audioinput', deviceId)
+  console.log('[LiveKit] Switched microphone to device:', deviceId)
+}
+
 // Get all remote participants in the room
 export function getRemoteParticipants(room: Room): RemoteParticipant[] {
   return Array.from(room.remoteParticipants.values())
@@ -112,4 +118,3 @@ export function getRemoteParticipants(room: Room): RemoteParticipant[] {
 export function isAgentParticipant(participant: RemoteParticipant): boolean {
   return participant.kind === ParticipantKind.AGENT
 }
-

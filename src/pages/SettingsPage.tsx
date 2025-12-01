@@ -3,19 +3,30 @@ import { Layout } from '@/components/Layout'
 import { LanguageSelect, MultiLanguageSelect } from '@/components/LanguageSelect'
 import { useStore } from '@/store/useStore'
 import { useAuth } from '@/hooks/useAuth'
+import { useMicDevices } from '@/hooks/useMicDevices'
+import { useLanguage } from '@/hooks/useLanguage'
 import { updateProfile, ApiError } from '@/lib/api'
 
 export function SettingsPage() {
   const { user } = useStore()
   const { refreshProfile } = useAuth()
+  const { t, language } = useLanguage()
 
   const [name, setName] = useState('')
   const [inputLang, setInputLang] = useState('ar')
   const [outputLangs, setOutputLangs] = useState<string[]>(['en'])
-  
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  const {
+    devices: micDevices,
+    selectedId: selectedMicId,
+    error: micError,
+    refresh: refreshMicDevices,
+    selectDevice: selectMic,
+  } = useMicDevices()
 
   // Initialize form with user data
   useEffect(() => {
@@ -79,10 +90,10 @@ export function SettingsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>
-            Settings
+            {t.SettingsPage.title}
           </h1>
           <p style={{ color: 'var(--color-text-muted)' }}>
-            Manage your profile and language preferences
+            {t.SettingsPage.subtitle}
           </p>
         </div>
 
@@ -95,16 +106,16 @@ export function SettingsPage() {
           }}
         >
           <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-text)' }}>
-            Profile Information
+            {t.SettingsPage.section_profile}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Slug (read-only) */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-muted)' }}>
-                URL Slug
+                {t.SettingsPage.label_slug}
               </label>
-              <div className="relative">
+              <div className="relative" dir="ltr">
                 <span
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-sm"
                   style={{ color: 'var(--color-text-dim)' }}
@@ -124,7 +135,7 @@ export function SettingsPage() {
                 />
               </div>
               <p className="text-xs mt-2" style={{ color: 'var(--color-text-dim)' }}>
-                Slug cannot be changed after creation
+                {t.SettingsPage.helper_slug_locked}
               </p>
             </div>
 
@@ -135,7 +146,7 @@ export function SettingsPage() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                Display Name
+                {t.SettingsPage.label_displayName}
               </label>
               <input
                 id="name"
@@ -155,14 +166,14 @@ export function SettingsPage() {
             {/* Input Language */}
             <LanguageSelect
               id="inputLang"
-              label="Speaking Language"
+              label={t.SettingsPage.label_speakingLang}
               value={inputLang}
               onChange={setInputLang}
             />
 
             {/* Output Languages */}
             <MultiLanguageSelect
-              label="Translation Languages"
+              label={t.SettingsPage.label_translationLang}
               value={outputLangs}
               onChange={setOutputLangs}
               excludeLanguage={inputLang}
@@ -180,9 +191,9 @@ export function SettingsPage() {
             {success && (
               <div
                 className="px-4 py-3 rounded-xl text-sm"
-                style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}
+                style={{ background: 'var(--color-live-muted)', color: 'var(--color-live)' }}
               >
-                Settings saved successfully!
+                {t.SettingsPage.msg_success}
               </div>
             )}
 
@@ -196,7 +207,7 @@ export function SettingsPage() {
                   color: 'var(--color-bg)',
                 }}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? t.common.loading : t.SettingsPage.button_save}
               </button>
               {hasChanges && (
                 <button
@@ -209,11 +220,71 @@ export function SettingsPage() {
                     border: '1px solid var(--color-border)',
                   }}
                 >
-                  Reset
+                  {t.SettingsPage.button_reset}
                 </button>
               )}
             </div>
           </form>
+        </div>
+
+        {/* Microphone Settings */}
+        <div
+          className="rounded-2xl p-6 mb-6"
+          style={{
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
+                {t.SettingsPage.section_mic}
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                {t.SettingsPage.subtitle_mic}
+              </p>
+            </div>
+            <button
+              onClick={refreshMicDevices}
+              className="px-3 py-2 rounded-lg text-sm font-medium"
+              style={{
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text)',
+              }}
+              type="button"
+            >
+              {t.SettingsPage.button_refresh}
+            </button>
+          </div>
+
+          <select
+            value={selectedMicId}
+            onChange={(e) => selectMic(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg text-sm"
+            style={{
+              background: 'var(--color-bg)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text)',
+            }}
+            disabled={micDevices.length === 0}
+          >
+            {micDevices.length === 0 && <option value="">No microphones detected</option>}
+            {micDevices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || 'Microphone'}
+              </option>
+            ))}
+          </select>
+
+          {micError && (
+            <div
+              className="mt-3 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger)' }}
+            >
+              {micError}
+            </div>
+          )}
         </div>
 
         {/* Account Info */}
@@ -225,11 +296,11 @@ export function SettingsPage() {
           }}
         >
           <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
-            Account
+            {t.SettingsPage.section_account}
           </h2>
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2">
-              <span style={{ color: 'var(--color-text-muted)' }}>Account ID</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{t.SettingsPage.label_account_id}</span>
               <span
                 className="text-sm font-mono"
                 style={{ color: 'var(--color-text-dim)' }}
@@ -238,10 +309,10 @@ export function SettingsPage() {
               </span>
             </div>
             <div className="flex items-center justify-between py-2">
-              <span style={{ color: 'var(--color-text-muted)' }}>Created</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{t.SettingsPage.label_created}</span>
               <span style={{ color: 'var(--color-text-dim)' }}>
                 {user?.created_at
-                  ? new Date(user.created_at).toLocaleDateString('en-US', {
+                  ? new Date(user.created_at).toLocaleDateString(language, {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -255,4 +326,3 @@ export function SettingsPage() {
     </Layout>
   )
 }
-

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { useLanguage } from '@/hooks/useLanguage'
 
 type AuthMode = 'signin' | 'signup'
 
 export function LoginPage() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
+  const { t } = useLanguage()
   
   const [mode, setMode] = useState<AuthMode>('signin')
   const [email, setEmail] = useState('')
@@ -56,8 +58,8 @@ export function LoginPage() {
       <div
         className="fixed inset-0 opacity-30"
         style={{
-          backgroundImage: `radial-gradient(circle at 25% 25%, var(--color-accent) 0%, transparent 50%),
-                           radial-gradient(circle at 75% 75%, var(--color-accent) 0%, transparent 50%)`,
+          backgroundImage: `radial-gradient(circle at 25% 25%, var(--color-border-hover) 0%, transparent 45%),
+                           radial-gradient(circle at 75% 75%, var(--color-border-hover) 0%, transparent 45%)`,
           filter: 'blur(100px)',
         }}
       />
@@ -75,7 +77,7 @@ export function LoginPage() {
             Baian
           </h1>
           <p style={{ color: 'var(--color-text-muted)' }}>
-            Real-time translation for speakers
+            {t.LoginPage.subtitle}
           </p>
         </div>
 
@@ -88,7 +90,7 @@ export function LoginPage() {
           }}
         >
           <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--color-text)' }}>
-            {mode === 'signin' ? 'Sign in to your account' : 'Create an account'}
+            {mode === 'signin' ? t.LoginPage.heading_signin : t.LoginPage.heading_create}
           </h2>
 
           {/* Google button */}
@@ -102,13 +104,13 @@ export function LoginPage() {
             }}
           >
             <GoogleIcon />
-            Continue with Google
+            {t.LoginPage.button_google}
           </button>
 
           {/* Divider */}
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
-            <span className="text-sm" style={{ color: 'var(--color-text-dim)' }}>or</span>
+            <span className="text-sm" style={{ color: 'var(--color-text-dim)' }}>{t.LoginPage.text_or}</span>
             <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
           </div>
 
@@ -120,7 +122,7 @@ export function LoginPage() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                Email
+                {t.LoginPage.label_email}
               </label>
               <input
                 id="email"
@@ -134,7 +136,7 @@ export function LoginPage() {
                   border: '1px solid var(--color-border)',
                   color: 'var(--color-text)',
                 }}
-                placeholder="you@example.com"
+                placeholder={t.LoginPage.placeholder_email}
               />
             </div>
 
@@ -144,7 +146,7 @@ export function LoginPage() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                Password
+                {t.LoginPage.label_password}
               </label>
               <input
                 id="password"
@@ -159,7 +161,7 @@ export function LoginPage() {
                   border: '1px solid var(--color-border)',
                   color: 'var(--color-text)',
                 }}
-                placeholder="••••••••"
+                placeholder={t.LoginPage.placeholder_password}
               />
             </div>
 
@@ -175,7 +177,7 @@ export function LoginPage() {
             {message && (
               <div
                 className="px-4 py-3 rounded-xl text-sm"
-                style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}
+                style={{ background: 'var(--color-live-muted)', color: 'var(--color-live)' }}
               >
                 {message}
               </div>
@@ -190,13 +192,13 @@ export function LoginPage() {
                 color: 'var(--color-bg)',
               }}
             >
-              {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
+              {loading ? t.common.loading : mode === 'signin' ? t.LoginPage.button_signin : t.LoginPage.button_signup}
             </button>
           </form>
 
           {/* Toggle mode */}
           <p className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+            {mode === 'signin' ? t.LoginPage.text_no_account : t.LoginPage.text_has_account}
             <button
               onClick={() => {
                 setMode(mode === 'signin' ? 'signup' : 'signin')
@@ -204,9 +206,9 @@ export function LoginPage() {
                 setMessage(null)
               }}
               className="font-medium transition-colors"
-              style={{ color: 'var(--color-accent)' }}
+              style={{ color: 'var(--color-text)' }}
             >
-              {mode === 'signin' ? 'Sign up' : 'Sign in'}
+              {mode === 'signin' ? t.LoginPage.link_signup : t.LoginPage.link_signin}
             </button>
           </p>
         </div>
@@ -237,4 +239,3 @@ function GoogleIcon() {
     </svg>
   )
 }
-

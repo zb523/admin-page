@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { getSessionHistory, updateSession, deleteSession, ApiError } from '@/lib/api'
-import { SUPPORTED_LANGUAGES } from '@/types'
+import { useLanguage } from '@/hooks/useLanguage'
 import type { SessionHistoryResponse } from '@/types'
 
 export function HistoryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, language, dir } = useLanguage()
   
   const [data, setData] = useState<SessionHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -77,7 +78,7 @@ export function HistoryDetailPage() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(language, {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
@@ -88,15 +89,15 @@ export function HistoryDetailPage() {
   }
 
   const formatDuration = (start: string, end: string | null) => {
-    if (!end) return 'In progress'
+    if (!end) return t.common.in_progress
     const startDate = new Date(start)
     const endDate = new Date(end)
     const diffMs = endDate.getTime() - startDate.getTime()
     const diffMins = Math.floor(diffMs / 60000)
-    if (diffMins < 60) return `${diffMins} minutes`
+    if (diffMins < 60) return `${diffMins} ${t.common.minutes}`
     const hours = Math.floor(diffMins / 60)
     const mins = diffMins % 60
-    return `${hours}h ${mins}m`
+    return `${hours}${t.common.hour_short} ${mins}${t.common.min_short}`
   }
 
   if (loading) {
@@ -121,10 +122,18 @@ export function HistoryDetailPage() {
             className="inline-flex items-center gap-2 mb-6 text-sm font-medium transition-colors"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }}
+            >
               <path d="M15 18l-6-6 6-6" />
             </svg>
-            Back to History
+            {t.HistoryDetailPage.back_link}
           </Link>
           <div
             className="rounded-2xl p-8 text-center"
@@ -133,7 +142,7 @@ export function HistoryDetailPage() {
               border: '1px solid var(--color-border)',
             }}
           >
-            <p style={{ color: 'var(--color-danger)' }}>{error || 'Session not found'}</p>
+            <p style={{ color: 'var(--color-danger)' }}>{error || t.HistoryDetailPage.error_not_found}</p>
           </div>
         </div>
       </Layout>
@@ -151,10 +160,18 @@ export function HistoryDetailPage() {
           className="inline-flex items-center gap-2 mb-6 text-sm font-medium transition-colors"
           style={{ color: 'var(--color-text-muted)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }}
+          >
             <path d="M15 18l-6-6 6-6" />
           </svg>
-          Back to History
+          {t.HistoryDetailPage.back_link}
         </Link>
 
         {/* Session Header */}
@@ -179,8 +196,9 @@ export function HistoryDetailPage() {
                       border: '1px solid var(--color-border)',
                       color: 'var(--color-text)',
                     }}
-                    placeholder="Session title"
+                    placeholder={t.HistoryDetailPage.label_title}
                     autoFocus
+                    dir="auto"
                   />
                   <button
                     onClick={handleSaveTitle}
@@ -188,7 +206,7 @@ export function HistoryDetailPage() {
                     className="px-3 py-2 rounded-lg font-medium text-sm"
                     style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}
                   >
-                    {isSavingTitle ? 'Saving...' : 'Save'}
+                    {isSavingTitle ? t.common.loading : t.common.save}
                   </button>
                   <button
                     onClick={() => {
@@ -198,7 +216,7 @@ export function HistoryDetailPage() {
                     className="px-3 py-2 rounded-lg font-medium text-sm"
                     style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
                   >
-                    Cancel
+                    {t.common.cancel}
                   </button>
                 </div>
               ) : (
@@ -206,14 +224,14 @@ export function HistoryDetailPage() {
                   {session.is_live && (
                     <span
                       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium animate-pulse-live"
-                      style={{ background: 'var(--color-danger-muted)', color: 'var(--color-live)' }}
+                      style={{ background: 'var(--color-live-muted)', color: 'var(--color-live)' }}
                     >
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-live)' }} />
-                      LIVE
+                      {t.HistoryPage.chip_live}
                     </span>
                   )}
                   <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
-                    {session.title || 'Untitled Session'}
+                    {session.title || t.common.untitled_session}
                   </h1>
                   {!session.is_live && (
                     <button
@@ -240,7 +258,7 @@ export function HistoryDetailPage() {
                   color: 'var(--color-danger)',
                 }}
               >
-                Delete
+                {t.common.delete}
               </button>
             )}
           </div>
@@ -248,33 +266,37 @@ export function HistoryDetailPage() {
           {/* Metadata */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>Started</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>{t.HistoryDetailPage.label_started}</p>
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
                 {formatDate(session.created_at)}
               </p>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>Duration</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>{t.HistoryDetailPage.label_duration}</p>
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
                 {formatDuration(session.created_at, session.ended_at)}
               </p>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>Speaking</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>{t.HistoryDetailPage.label_speaking}</p>
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                {SUPPORTED_LANGUAGES[session.input_lang] || session.input_lang}
+                {t.languages[session.input_lang as keyof typeof t.languages] || session.input_lang}
               </p>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>Translations</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-dim)' }}>{t.HistoryDetailPage.label_translations}</p>
               <div className="flex flex-wrap gap-1">
                 {session.output_langs.map((lang) => (
                   <span
                     key={lang}
                     className="px-2 py-0.5 rounded text-xs font-medium"
-                    style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}
+                    style={{
+                      background: 'var(--color-bg-hover)',
+                      color: 'var(--color-text)',
+                      border: '1px solid var(--color-border)',
+                    }}
                   >
-                    {SUPPORTED_LANGUAGES[lang] || lang}
+                    {t.languages[lang as keyof typeof t.languages] || lang}
                   </span>
                 ))}
               </div>
@@ -291,11 +313,11 @@ export function HistoryDetailPage() {
           }}
         >
           <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
-            Transcripts ({transcripts.length})
+            {t.HistoryDetailPage.section_transcripts} ({transcripts.length})
           </h2>
 
           {transcripts.length === 0 ? (
-            <p style={{ color: 'var(--color-text-muted)' }}>No transcripts recorded</p>
+            <p style={{ color: 'var(--color-text-muted)' }}>{t.HistoryDetailPage.empty_transcripts}</p>
           ) : (
             <div className="space-y-4">
               {transcripts.map((t) => (
@@ -312,7 +334,7 @@ export function HistoryDetailPage() {
                       #{t.sequence_id}
                     </span>
                   </div>
-                  <p className="mb-3 text-lg" style={{ color: 'var(--color-text)' }}>
+                  <p className="mb-3 text-lg" style={{ color: 'var(--color-text)' }} dir="auto">
                     {t.source_text}
                   </p>
                   {Object.entries(t.translations).length > 0 && (
@@ -321,11 +343,15 @@ export function HistoryDetailPage() {
                         <div key={lang} className="flex gap-3">
                           <span
                             className="shrink-0 text-xs font-medium px-2 py-0.5 rounded h-fit"
-                            style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}
+                            style={{
+                              background: 'var(--color-bg-hover)',
+                              color: 'var(--color-text)',
+                              border: '1px solid var(--color-border)',
+                            }}
                           >
-                            {SUPPORTED_LANGUAGES[lang] || lang}
+                            {t.languages[lang as keyof typeof t.languages] || lang}
                           </span>
-                          <p style={{ color: 'var(--color-text-muted)' }}>{text}</p>
+                          <p style={{ color: 'var(--color-text-muted)' }} dir="auto">{text}</p>
                         </div>
                       ))}
                     </div>
@@ -347,10 +373,10 @@ export function HistoryDetailPage() {
               }}
             >
               <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-                Delete Session?
+                {t.HistoryDetailPage.modal_delete_title}
               </h3>
               <p className="mb-6" style={{ color: 'var(--color-text-muted)' }}>
-                This action cannot be undone. All transcripts and translations will be permanently deleted.
+                {t.HistoryDetailPage.modal_delete_body}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -358,7 +384,7 @@ export function HistoryDetailPage() {
                   className="px-4 py-2 rounded-lg font-medium"
                   style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -366,7 +392,7 @@ export function HistoryDetailPage() {
                   className="px-4 py-2 rounded-lg font-medium"
                   style={{ background: 'var(--color-danger)', color: 'white' }}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? t.common.loading : t.common.delete}
                 </button>
               </div>
             </div>
@@ -376,4 +402,3 @@ export function HistoryDetailPage() {
     </Layout>
   )
 }
-
