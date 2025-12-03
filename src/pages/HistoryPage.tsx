@@ -6,7 +6,7 @@ import { AddToCollectionModal } from '@/components/AddToCollectionModal'
 import { useSession } from '@/hooks/useSession'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useCollections } from '@/hooks/useCollections'
-import { deleteSession } from '@/lib/api'
+import { deleteSession, updateSession } from '@/lib/api'
 import type { SessionListItem } from '@/types'
 
 export function HistoryPage() {
@@ -18,6 +18,11 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [isDeletingMultiple, setIsDeletingMultiple] = useState(false)
+  
+  // Editing State
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   
   // Selection Mode State
   const [activeTab, setActiveTab] = useState<'sessions' | 'collections'>('sessions')
@@ -36,6 +41,38 @@ export function HistoryPage() {
     }
     load()
   }, [fetchSessions])
+
+  const handleStartEdit = (session: SessionListItem) => {
+    setEditingId(session.id)
+    setEditTitle(session.title || '')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditTitle('')
+  }
+
+  const handleSaveEdit = async (sessionId: string) => {
+    if (!editTitle.trim()) return
+    
+    setIsSaving(true)
+    try {
+      const updatedSession = await updateSession(sessionId, { title: editTitle.trim() })
+      
+      // Update local state
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, title: updatedSession.title } : s
+      ))
+      
+      setEditingId(null)
+      setEditTitle('')
+    } catch (err) {
+      console.error('Failed to update session title:', err)
+      alert('Failed to update title. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const handleDelete = async (sessionId: string) => {
     if (deleting) return // Prevent multiple deletes
@@ -119,10 +156,10 @@ export function HistoryPage() {
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>
+            <h1 className="text-2xl font-bold font-display mb-1" style={{ color: 'var(--color-text)' }}>
               {t.HistoryPage.title}
             </h1>
-            <p style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {t.HistoryPage.subtitle}
             </p>
           </div>
@@ -130,14 +167,14 @@ export function HistoryPage() {
           {/* Tabs & Actions */}
           <div className="flex items-center gap-3">
             <div 
-              className="p-1 rounded-lg flex" 
+              className="p-1 rounded-full flex shadow-sm" 
               style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)' }}
             >
               <button
                 onClick={() => { setActiveTab('sessions'); setIsSelectionMode(false); }}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                   activeTab === 'sessions' 
-                    ? 'bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm' 
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm' 
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                 }`}
               >
@@ -145,9 +182,9 @@ export function HistoryPage() {
               </button>
               <button
                 onClick={() => { setActiveTab('collections'); setIsSelectionMode(false); }}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                   activeTab === 'collections' 
-                    ? 'bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm' 
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm' 
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                 }`}
               >
@@ -161,10 +198,10 @@ export function HistoryPage() {
                   setIsSelectionMode(!isSelectionMode)
                   setSelectedSessionIds(new Set())
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors border ${
                   isSelectionMode 
-                    ? 'bg-[var(--color-accent)] text-[var(--color-bg)] border-transparent'
-                    : 'bg-[var(--color-bg)] text-[var(--color-text)] border-[var(--color-border)]'
+                    ? 'bg-[var(--color-accent)] text-white border-transparent'
+                    : 'bg-transparent text-[var(--color-text)] border-[var(--color-border)]'
                 }`}
               >
                 {isSelectionMode ? t.common.cancel : t.common.select}
@@ -187,7 +224,7 @@ export function HistoryPage() {
               <>
                 {sessions.length === 0 ? (
                   <div
-                    className="rounded-2xl p-12 text-center"
+                    className="rounded-3xl p-12 text-center"
                     style={{
                       background: 'var(--color-bg-elevated)',
                       border: '1px solid var(--color-border)',
@@ -241,7 +278,7 @@ export function HistoryPage() {
                     {pastSessions.length > 0 && (
                       <section>
                         <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
+                          <h2 className="text-lg font-semibold font-display" style={{ color: 'var(--color-text)' }}>
                             {t.HistoryPage.section_past}
                           </h2>
                           {isSelectionMode && (
@@ -254,17 +291,114 @@ export function HistoryPage() {
                             </button>
                           )}
                         </div>
-                        <div className="space-y-3">
-                          {pastSessions.map((session) => (
-                            <SessionCard 
-                              key={session.id} 
-                              session={session} 
-                              onDelete={isSelectionMode ? undefined : handleDelete}
-                              selectable={isSelectionMode}
-                              isSelected={selectedSessionIds.has(session.id)}
-                              onToggle={toggleSelection}
-                            />
-                          ))}
+                        {/* Ghost Table Style - Minimal dividers */}
+                        <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden shadow-baian">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-[var(--color-bg-inset)] border-b border-[var(--color-border)]">
+                              <tr>
+                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Date</th>
+                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Event Title</th>
+                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Duration</th>
+                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)] text-right">Listeners</th>
+                                <th className="px-6 py-4"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--color-border)]">
+                              {pastSessions.map((session) => {
+                                const isEditing = editingId === session.id
+                                
+                                return (
+                                  <tr key={session.id} className="hover:bg-[var(--color-bg-hover)] transition-colors group">
+                                    <td className="px-6 py-4 text-[var(--color-text)] opacity-80">
+                                      {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-[var(--color-text)]">
+                                      {isEditing ? (
+                                        <div className="flex items-center gap-2">
+                                          <input 
+                                            type="text"
+                                            value={editTitle}
+                                            onChange={(e) => setEditTitle(e.target.value)}
+                                            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm w-full max-w-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if(e.key === 'Enter') handleSaveEdit(session.id)
+                                              if(e.key === 'Escape') handleCancelEdit()
+                                            }}
+                                          />
+                                          <div className="flex items-center gap-1">
+                                            <button 
+                                              onClick={() => handleSaveEdit(session.id)}
+                                              disabled={isSaving}
+                                              className="p-1.5 rounded-md text-[var(--color-live)] hover:bg-[var(--color-live-muted)] transition-colors"
+                                            >
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                            </button>
+                                            <button 
+                                              onClick={handleCancelEdit}
+                                              className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] transition-colors"
+                                            >
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        session.title || t.common.untitled_session
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs">
+                                      {session.ended_at ? (
+                                        (() => {
+                                          const diff = new Date(session.ended_at).getTime() - new Date(session.created_at).getTime()
+                                          const mins = Math.floor(diff / 60000)
+                                          return mins < 60 ? `${mins}m` : `${Math.floor(mins/60)}h ${mins%60}m`
+                                        })()
+                                      ) : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs text-right">
+                                      -
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                      {!isEditing && (
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          {/* Edit Button */}
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleStartEdit(session)
+                                            }}
+                                            className="p-2 rounded-lg text-[var(--color-accent)] hover:bg-[var(--color-bg)] transition-colors"
+                                            title="Edit Name"
+                                          >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                            </svg>
+                                          </button>
+                                          
+                                          {/* Delete Button */}
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if(!isSelectionMode) handleDelete(session.id);
+                                              else toggleSelection(session.id);
+                                            }}
+                                            className="p-2 rounded-lg text-[var(--color-danger)] hover:bg-[var(--color-danger-muted)] transition-colors"
+                                            title="Delete"
+                                          >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M3 6h18" />
+                                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       </section>
                     )}
@@ -284,27 +418,27 @@ export function HistoryPage() {
         {isSelectionMode && selectedSessionIds.size > 0 && (
           <div className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none z-50">
             <div 
-              className="pointer-events-auto rounded-2xl shadow-2xl p-2 flex items-center gap-2 animate-slide-up"
+              className="pointer-events-auto rounded-full shadow-baian p-2 px-3 flex items-center gap-3 animate-slide-up backdrop-blur-lg"
               style={{ 
                 background: 'var(--color-bg-elevated)', 
                 border: '1px solid var(--color-border)',
                 maxWidth: '90vw'
               }}
             >
-              <div className="px-4 font-medium" style={{ color: 'var(--color-text)' }}>
+              <div className="px-3 font-medium" style={{ color: 'var(--color-text)' }}>
                 {selectedSessionIds.size} {t.common.selected}
               </div>
               <div className="h-6 w-px" style={{ background: 'var(--color-border)' }} />
               <button
                 onClick={() => setShowAddToCollection(true)}
-                className="px-4 py-2 rounded-xl font-medium transition-colors hover:bg-[var(--color-bg-hover)]"
+                className="px-4 py-2 rounded-full font-medium transition-colors hover:bg-[var(--color-bg-hover)]"
                 style={{ color: 'var(--color-text)' }}
               >
                 {t.common.add_to_collection}
               </button>
               <button
                 onClick={handleMassDelete}
-                className="px-4 py-2 rounded-xl font-medium transition-colors hover:bg-[var(--color-danger-muted)]"
+                className="px-4 py-2 rounded-full font-medium transition-colors hover:bg-[var(--color-danger-muted)]"
                 style={{ color: 'var(--color-danger)' }}
               >
                 {t.common.delete}
