@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useStore } from '@/store/useStore'
 import {
   startSession as apiStartSession,
@@ -33,6 +33,7 @@ export function useSession() {
     activeSession,
     livekitRoom,
     isMicEnabled,
+    isLive: isLiveInStore,
     startLiveSession,
     stopLiveSession,
     setMicEnabled,
@@ -40,6 +41,12 @@ export function useSession() {
 
   // Start a new session
   const startSession = useCallback(async () => {
+    if (activeSession || isLiveInStore || user?.is_live) {
+      setSessionPhase('live')
+      setError(null)
+      return
+    }
+
     if (!user) {
       setError('Not logged in')
       return
@@ -123,7 +130,7 @@ export function useSession() {
       console.error('Start session error:', err)
       setSessionPhase('idle')
     }
-  }, [user, startLiveSession])
+  }, [user, startLiveSession, activeSession, isLiveInStore])
 
   // Force stop existing session and start new
   const forceStopAndRestart = useCallback(async () => {
@@ -215,6 +222,15 @@ export function useSession() {
   const dismissForceStopModal = useCallback(() => {
     setShowForceStopModal(false)
   }, [])
+
+  // Sync session phase when navigating away/back
+  useEffect(() => {
+    if (activeSession || isLiveInStore || user?.is_live) {
+      setSessionPhase('live')
+    } else if (!activeSession && !isLiveInStore && sessionPhase === 'live') {
+      setSessionPhase('idle')
+    }
+  }, [activeSession, isLiveInStore, user?.is_live, sessionPhase])
 
   return {
     // Session state

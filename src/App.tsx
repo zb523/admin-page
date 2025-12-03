@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthGuard } from '@/components/AuthGuard'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginPage } from '@/pages/LoginPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
@@ -18,6 +20,8 @@ function App() {
 
   return (
     <AuthGuard>
+      <LanguageSwitcher />
+      <ThemeToggle />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LoginPage />} />
@@ -37,4 +41,3 @@ function App() {
 }
 
 export default App
-

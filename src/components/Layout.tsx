@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useStore } from '@/store/useStore'
+import { useLanguage } from '@/hooks/useLanguage'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -9,48 +10,41 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { signOut } = useAuth()
-  const { user, isLive } = useStore()
+  const { user } = useStore()
+  const { t } = useLanguage()
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { path: '/history', label: 'History', icon: HistoryIcon },
-    { path: '/settings', label: 'Settings', icon: SettingsIcon },
+    { path: '/dashboard', label: t.DashboardPage.title, icon: DashboardIcon },
+    { path: '/history', label: t.HistoryPage.title, icon: HistoryIcon },
+    { path: '/settings', label: t.SettingsPage.title, icon: SettingsIcon },
   ]
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--color-bg)' }}>
       {/* Sidebar */}
       <aside
-        className="w-64 flex flex-col fixed left-0 top-0 bottom-0"
-        style={{ background: 'var(--color-bg-elevated)', borderRight: '1px solid var(--color-border)' }}
+        className="w-64 flex flex-col fixed start-0 top-0 bottom-0"
+        style={{ 
+          background: 'var(--color-bg-elevated)', 
+          borderInlineEnd: '1px solid var(--color-border)' 
+        }}
       >
         {/* Logo */}
         <div className="p-6 flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg"
-            style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-lg"
+            style={{ background: 'var(--color-accent)', color: '#ffffff' }}
           >
             B
           </div>
           <div>
-            <h1 className="font-semibold" style={{ color: 'var(--color-text)' }}>Baian</h1>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Speaker Dashboard</p>
+            <h1 className="font-semibold font-display" style={{ color: 'var(--color-text)' }}>BaianLive</h1>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t.common.speaker_dashboard}</p>
           </div>
         </div>
 
-        {/* Live indicator */}
-        {isLive && (
-          <div
-            className="mx-4 mb-4 px-3 py-2 rounded-lg flex items-center gap-2 animate-pulse-live"
-            style={{ background: 'var(--color-danger-muted)' }}
-          >
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--color-live)' }} />
-            <span className="text-sm font-medium" style={{ color: 'var(--color-live)' }}>Live Now</span>
-          </div>
-        )}
-
         {/* Navigation */}
-        <nav className="flex-1 px-3">
+        <nav className="flex-1 px-4 space-y-2">
           {navItems.map(({ path, label, icon: Icon }) => {
             const isActive = location.pathname === path || 
               (path === '/history' && location.pathname.startsWith('/history'))
@@ -59,24 +53,26 @@ export function Layout({ children }: LayoutProps) {
               <Link
                 key={path}
                 to={path}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 rounded-full transition-all duration-200"
                 style={{
-                  background: isActive ? 'var(--color-bg-hover)' : 'transparent',
-                  color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
+                  background: isActive ? 'var(--color-accent)' : 'transparent',
+                  color: isActive ? '#ffffff' : 'var(--color-text-muted)',
+                  boxShadow: isActive ? 'var(--shadow-baian)' : 'none',
+                  fontWeight: isActive ? 600 : 500,
                 }}
               >
                 <Icon />
-                <span className="font-medium">{label}</span>
+                <span>{label}</span>
               </Link>
             )
           })}
         </nav>
 
         {/* User section */}
-        <div className="p-4" style={{ borderTop: '1px solid var(--color-border)' }}>
-          <div className="flex items-center gap-3 mb-3">
+        <div className="p-6" style={{ borderTop: '1px solid var(--color-border)' }}>
+          <div className="flex items-center gap-3 mb-4">
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium"
               style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
             >
               {user?.name?.charAt(0).toUpperCase() || '?'}
@@ -92,21 +88,21 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <button
             onClick={signOut}
-            className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="w-full px-4 py-3 rounded-2xl text-sm font-medium transition-colors"
             style={{
               background: 'var(--color-bg)',
               color: 'var(--color-text-muted)',
               border: '1px solid var(--color-border)',
             }}
           >
-            Sign Out
+            {t.common.sign_out}
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 ml-64 p-8">
-        <div className="max-w-4xl mx-auto">
+      <main className="flex-1 ms-64 p-8">
+        <div className="max-w-5xl mx-auto">
           {children}
         </div>
       </main>
@@ -118,10 +114,10 @@ export function Layout({ children }: LayoutProps) {
 function DashboardIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
     </svg>
   )
 }
@@ -143,4 +139,3 @@ function SettingsIcon() {
     </svg>
   )
 }
-

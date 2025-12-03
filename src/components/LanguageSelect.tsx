@@ -1,4 +1,5 @@
 import { SUPPORTED_LANGUAGES } from '@/types'
+import { useLanguage } from '@/hooks/useLanguage'
 
 interface LanguageSelectProps {
   value: string
@@ -8,6 +9,8 @@ interface LanguageSelectProps {
 }
 
 export function LanguageSelect({ value, onChange, label, id }: LanguageSelectProps) {
+  const { t } = useLanguage()
+
   return (
     <div className="flex flex-col gap-2">
       {label && (
@@ -26,9 +29,9 @@ export function LanguageSelect({ value, onChange, label, id }: LanguageSelectPro
           color: 'var(--color-text)',
         }}
       >
-        {Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => (
+        {Object.keys(SUPPORTED_LANGUAGES).map((code) => (
           <option key={code} value={code}>
-            {name}
+            {t.languages[code as keyof typeof t.languages] || SUPPORTED_LANGUAGES[code]}
           </option>
         ))}
       </select>
@@ -44,8 +47,10 @@ interface MultiLanguageSelectProps {
 }
 
 export function MultiLanguageSelect({ value, onChange, label, excludeLanguage }: MultiLanguageSelectProps) {
-  const availableLanguages = Object.entries(SUPPORTED_LANGUAGES).filter(
-    ([code]) => code !== excludeLanguage
+  const { t } = useLanguage()
+  
+  const availableLanguages = Object.keys(SUPPORTED_LANGUAGES).filter(
+    (code) => code !== excludeLanguage
   )
 
   const toggleLanguage = (code: string) => {
@@ -67,8 +72,10 @@ export function MultiLanguageSelect({ value, onChange, label, excludeLanguage }:
         </label>
       )}
       <div className="flex flex-wrap gap-2">
-        {availableLanguages.map(([code, name]) => {
+        {availableLanguages.map((code) => {
           const isSelected = value.includes(code)
+          const name = t.languages[code as keyof typeof t.languages] || SUPPORTED_LANGUAGES[code]
+          
           return (
             <button
               key={code}
@@ -76,9 +83,10 @@ export function MultiLanguageSelect({ value, onChange, label, excludeLanguage }:
               onClick={() => toggleLanguage(code)}
               className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
-                background: isSelected ? 'var(--color-accent-muted)' : 'var(--color-bg-elevated)',
-                border: `1px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                color: isSelected ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                background: isSelected ? 'var(--color-chip-selected-bg)' : 'var(--color-bg-elevated)',
+                border: `1px solid ${isSelected ? 'var(--color-chip-selected-border)' : 'var(--color-border)'}`,
+                color: isSelected ? 'var(--color-text)' : 'var(--color-text-muted)',
+                boxShadow: isSelected ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'none',
               }}
             >
               {name}
@@ -89,4 +97,3 @@ export function MultiLanguageSelect({ value, onChange, label, excludeLanguage }:
     </div>
   )
 }
-
