@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Collection, Session } from '@/types'
+import type { Collection } from '@/types'
 
 const COLLECTIONS_STORAGE_KEY = 'baian-collections'
 

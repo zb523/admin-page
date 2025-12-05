@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import type { Room } from 'livekit-client'
 import type { UserProfile, Session } from '@/types'
 
+// Session phase - persisted in Zustand to survive navigation
+export type SessionPhase = 'idle' | 'connecting' | 'waiting_agent' | 'live' | 'agent_reconnecting'
+
 interface AppState {
   // Auth state
   user: UserProfile | null
@@ -10,6 +13,7 @@ interface AppState {
 
   // Session state
   activeSession: Session | null
+  sessionPhase: SessionPhase
   isLive: boolean
   livekitRoom: Room | null
   isMicEnabled: boolean
@@ -21,6 +25,7 @@ interface AppState {
   
   // Session actions
   setActiveSession: (session: Session | null) => void
+  setSessionPhase: (phase: SessionPhase) => void
   setIsLive: (live: boolean) => void
   setLivekitRoom: (room: Room | null) => void
   setMicEnabled: (enabled: boolean) => void
@@ -39,6 +44,7 @@ const initialAuthState = {
 
 const initialSessionState = {
   activeSession: null,
+  sessionPhase: 'idle' as SessionPhase,
   isLive: false,
   livekitRoom: null,
   isMicEnabled: false,
@@ -55,6 +61,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Session actions
   setActiveSession: (activeSession) => set({ activeSession }),
+  setSessionPhase: (sessionPhase) => set({ sessionPhase }),
   setIsLive: (isLive) => set({ isLive }),
   setLivekitRoom: (livekitRoom) => set({ livekitRoom }),
   setMicEnabled: (isMicEnabled) => set({ isMicEnabled }),
@@ -63,6 +70,7 @@ export const useStore = create<AppState>((set, get) => ({
   startLiveSession: (session, room) => {
     set({
       activeSession: session,
+      sessionPhase: 'live',
       isLive: true,
       livekitRoom: room,
       isMicEnabled: true,
@@ -90,6 +98,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     set({
       activeSession: null,
+      sessionPhase: 'idle',
       isLive: false,
       livekitRoom: null,
       isMicEnabled: false,

@@ -107,6 +107,25 @@ export interface SessionHistoryResponse {
   transcripts: TranscriptWithTranslations[]
 }
 
+// Glossary term for Speechmatics custom dictionary
+export interface GlossaryTerm {
+  id: string
+  user_id: string
+  content: string
+  sounds_like: string[]
+  language: string
+  created_at: string
+}
+
+// Gemini extraction response
+export interface GlossaryExtractionResponse {
+  detected_language: string
+  terms: Array<{
+    content: string
+    sounds_like: string[]
+  }>
+}
+
 // Language options
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   ar: 'Arabic',

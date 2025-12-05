@@ -11,7 +11,7 @@ import type { SessionListItem } from '@/types'
 
 export function HistoryPage() {
   const { fetchSessions } = useSession()
-  const { t, dir } = useLanguage()
+  const { t } = useLanguage()
   const { addSessionsToCollection, cleanupDeletedSessions } = useCollections()
   
   const [sessions, setSessions] = useState<SessionListItem[]>([])

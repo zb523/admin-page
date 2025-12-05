@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { useStore } from '@/store/useStore'
+import { useStore, type SessionPhase } from '@/store/useStore'
 import {
   startSession as apiStartSession,
   stopSession as apiStopSession,
@@ -17,10 +17,10 @@ import {
 import type { Room } from 'livekit-client'
 import type { Session, SessionListItem } from '@/types'
 
-export type SessionPhase = 'idle' | 'connecting' | 'waiting_agent' | 'live' | 'agent_reconnecting'
+// Re-export SessionPhase for consumers
+export type { SessionPhase }
 
 export function useSession() {
-  const [sessionPhase, setSessionPhase] = useState<SessionPhase>('idle')
   const [isStopping, setIsStopping] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showForceStopModal, setShowForceStopModal] = useState(false)
@@ -31,11 +31,13 @@ export function useSession() {
   const {
     user,
     activeSession,
+    sessionPhase,
     livekitRoom,
     isMicEnabled,
     isLive: isLiveInStore,
     startLiveSession,
     stopLiveSession,
+    setSessionPhase,
     setMicEnabled,
   } = useStore()
 
@@ -63,7 +65,8 @@ export function useSession() {
         onParticipantConnected: (participant) => {
           if (isAgentParticipant(participant)) {
             console.log('[useSession] Agent joined:', participant.identity)
-            setSessionPhase('live')
+            // Use store action to persist across navigation
+            useStore.getState().setSessionPhase('live')
             // Enable mic when agent joins
             if (roomRef.current) {
               enableMicrophone(roomRef.current).catch(console.error)
@@ -73,7 +76,7 @@ export function useSession() {
         onParticipantDisconnected: (participant) => {
           if (isAgentParticipant(participant)) {
             console.log('[useSession] Agent disconnected:', participant.identity)
-            setSessionPhase('agent_reconnecting')
+            useStore.getState().setSessionPhase('agent_reconnecting')
           }
         },
         onDisconnected: (reason) => {
@@ -130,7 +133,7 @@ export function useSession() {
       console.error('Start session error:', err)
       setSessionPhase('idle')
     }
-  }, [user, startLiveSession, activeSession, isLiveInStore])
+  }, [user, startLiveSession, activeSession, isLiveInStore, setSessionPhase])
 
   // Force stop existing session and start new
   const forceStopAndRestart = useCallback(async () => {
@@ -223,14 +226,13 @@ export function useSession() {
     setShowForceStopModal(false)
   }, [])
 
-  // Sync session phase when navigating away/back
+  // Sync session phase - only reset to idle if truly no session
+  // (sessionPhase now persists in Zustand, so no need to restore on navigation)
   useEffect(() => {
-    if (activeSession || isLiveInStore || user?.is_live) {
-      setSessionPhase('live')
-    } else if (!activeSession && !isLiveInStore && sessionPhase === 'live') {
+    if (!activeSession && !isLiveInStore && !user?.is_live && sessionPhase === 'live') {
       setSessionPhase('idle')
     }
-  }, [activeSession, isLiveInStore, user?.is_live, sessionPhase])
+  }, [activeSession, isLiveInStore, user?.is_live, sessionPhase, setSessionPhase])
 
   return {
     // Session state

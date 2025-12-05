@@ -320,9 +320,9 @@ export function HistoryDetailPage() {
             <p style={{ color: 'var(--color-text-muted)' }}>{t.HistoryDetailPage.empty_transcripts}</p>
           ) : (
             <div className="space-y-4">
-              {transcripts.map((t) => (
+              {transcripts.map((transcript) => (
                 <div
-                  key={t.sequence_id}
+                  key={transcript.sequence_id}
                   className="p-4 rounded-xl"
                   style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
                 >
@@ -331,15 +331,15 @@ export function HistoryDetailPage() {
                       className="text-xs font-mono px-2 py-0.5 rounded"
                       style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-dim)' }}
                     >
-                      #{t.sequence_id}
+                      #{transcript.sequence_id}
                     </span>
                   </div>
                   <p className="mb-3 text-lg" style={{ color: 'var(--color-text)' }} dir="auto">
-                    {t.source_text}
+                    {transcript.source_text}
                   </p>
-                  {Object.entries(t.translations).length > 0 && (
+                  {Object.entries(transcript.translations).length > 0 && (
                     <div className="space-y-2 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
-                      {Object.entries(t.translations).map(([lang, text]) => (
+                      {Object.entries(transcript.translations).map(([lang, text]) => (
                         <div key={lang} className="flex gap-3">
                           <span
                             className="shrink-0 text-xs font-medium px-2 py-0.5 rounded h-fit"
