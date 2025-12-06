@@ -29,7 +29,8 @@ export function DashboardPage() {
 
   const [copied, setCopied] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [meterLevels, setMeterLevels] = useState<number[]>(() => Array(12).fill(8))
+  const [meterLevels, setMeterLevels] = useState<number[]>(() => Array(10).fill(20))
+  const [isTesting, setIsTesting] = useState(false)
 
   const listenerLink = getListenerLink()
 
@@ -55,12 +56,19 @@ export function DashboardPage() {
     selectDevice: handleSelectMic,
   } = useMicDevices(applyMicToRoom)
 
-  const { level: micLevel, error: meterError } = useAudioMeter(isLive && isMicEnabled, selectedMicId)
+  const { level: micLevel } = useAudioMeter(isTesting || (isLive && isMicEnabled), selectedMicId)
 
-  // Determine what to show based on phase
+  // Auto-stop testing when session starts
+  useEffect(() => {
+    if (isLive) {
+      setIsTesting(false)
+    }
+  }, [isLive])
+
   const isConnecting = sessionPhase === 'connecting'
   const isWaitingAgent = sessionPhase === 'waiting_agent'
-  const isAgentReconnecting = sessionPhase === 'agent_reconnecting'
+  const isIdle = sessionPhase === 'idle'
+  const showTimerAndStatus = !isIdle // Show when connecting, waiting, or live
 
   // Timer
   useEffect(() => {
@@ -74,617 +82,692 @@ export function DashboardPage() {
     return () => clearInterval(interval)
   }, [isLive])
 
-  // Audio meter driven by mic level
+  // Audio meter - update when testing or live
   useEffect(() => {
-    if (!isLive || !isMicEnabled) {
-      setMeterLevels(Array(12).fill(6))
+    const isActive = isTesting || (isLive && isMicEnabled)
+    if (!isActive) {
+      setMeterLevels(Array(10).fill(20))
       return
     }
-
-    const base = Math.max(6, micLevel * 90 + 6)
-    const next = Array.from({ length: 12 }, (_, i) => Math.round(base * (0.72 + i * 0.015)))
+    const base = Math.max(25, micLevel * 80 + 25)
+    const next = Array.from({ length: 10 }, () => Math.round(base + Math.random() * 30))
     setMeterLevels(next)
-  }, [isLive, isMicEnabled, micLevel])
+  }, [isLive, isMicEnabled, isTesting, micLevel])
 
   const formattedTimer = useMemo(() => {
     const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')
     const seconds = String(elapsedSeconds % 60).padStart(2, '0')
-    return `${minutes}:${seconds}`
+    return { minutes, seconds }
   }, [elapsedSeconds])
 
-  const showFullControls = sessionPhase !== 'idle'
+  const handleMainAction = () => {
+    if (isLive) {
+      stopSession()
+    } else if (isConnecting || isWaitingAgent) {
+      cancelSession()
+    } else {
+      startSession()
+    }
+  }
+
+  const getMainButtonText = () => {
+    if (isStopping) return 'Ending...'
+    if (isLive) return 'End Session'
+    if (isConnecting) return 'Cancel'
+    if (isWaitingAgent) return 'Cancel'
+    return 'Go Live'
+  }
+
+  const getStatusText = () => {
+    if (isLive) return 'On Air'
+    if (isConnecting) return 'Connecting...'
+    if (isWaitingAgent) return 'Waiting...'
+    return 'Offline'
+  }
 
   return (
     <Layout>
-      <div className="animate-fade-in">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold font-display mb-1 tracking-tight" style={{ color: 'var(--color-text)' }}>
-              {t.DashboardPage.title}
-            </h1>
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              {t.DashboardPage.subtitle}
-            </p>
-          </div>
-          {/* Status Pill - mimicking the screenshot "Offline/Live" status */}
-          <div 
-            className="px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border"
-            style={{ 
-              background: isLive ? 'rgba(16,185,129,0.1)' : 'var(--color-bg-elevated)',
-              borderColor: isLive ? 'rgba(16,185,129,0.3)' : 'var(--color-border)',
-              color: isLive ? 'var(--color-live)' : 'var(--color-text-muted)'
-            }}
-          >
-            <span className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(7,108,95,0.6)]' : 'bg-gray-500/40'}`} />
-              {isLive ? 'ON AIR' : 'OFFLINE'}
-            </span>
-          </div>
-        </div>
+      <div className="av-dashboard">
+        {/* Hero Section */}
+        <div className={`av-hero ${isLive ? 'av-hero--live' : ''}`}>
+          {/* Status + Timer - only show when not idle */}
+          {showTimerAndStatus && (
+            <div className="av-timer-group animate-in">
+              {/* Status */}
+              <div className="av-status">
+                <span className={`av-status__dot ${isLive ? 'av-status__dot--live' : ''}`} />
+                <span className={`av-status__text ${isLive ? 'av-status__text--live' : ''}`}>
+                  {getStatusText()}
+                </span>
+              </div>
 
-        {/* Status Card (Hero) */}
-        <div
-          className="relative overflow-hidden mb-8 transition-all duration-300 shadow-baian rounded-[2rem]"
-          style={{
-            background: 'var(--color-bg-elevated)',
-            border: '1px solid var(--color-border)',
-            minHeight: showFullControls ? 'auto' : '300px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            padding: '2rem',
-          }}
-        >
-          {isLive && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'rgba(7, 108, 95, 0.05)' }} // baian-emerald/5
-            />
+              {/* Timer */}
+              <div className="av-timer">
+                <span>{formattedTimer.minutes}</span>
+                <span className="av-timer__colon">:</span>
+                <span>{formattedTimer.seconds}</span>
+              </div>
+            </div>
           )}
 
-          {!showFullControls ? (
-            // Idle State: Simple Start Button
-            <div className="flex flex-col items-center justify-center py-6 text-center animate-fade-in">
+          {/* Main Button */}
+          <button
+            className={`av-main-btn ${isLive ? 'av-main-btn--stop' : 'av-main-btn--start'}`}
+            onClick={handleMainAction}
+            disabled={isStopping}
+          >
+            {isLive ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            )}
+            {getMainButtonText()}
+          </button>
+
+          {/* Error */}
+          {error && (
+            <div className="av-error">
+              <span>{error}</span>
+              <button onClick={clearError}>Dismiss</button>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <aside className="av-sidebar">
+          {/* Microphone Section */}
+          <div className="av-section">
+            <span className="av-section__title">Microphone</span>
+            <select
+              className="av-select"
+              value={selectedMicId}
+              onChange={(e) => handleSelectMic(e.target.value)}
+              disabled={micDevices.length === 0}
+            >
+              {micDevices.length === 0 && <option value="">No microphones</option>}
+              {micDevices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label || 'Microphone'}
+                </option>
+              ))}
+            </select>
+
+            {/* Test Button - only show when not live */}
+            {!isLive && (
               <button
-                onClick={startSession}
-                className="px-10 h-16 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98] hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-3 shadow-[0_12px_24px_rgba(7,108,95,0.2)] hover:shadow-[0_16px_32px_rgba(7,108,95,0.3)]"
-                style={{
-                  background: 'var(--color-accent)',
-                  color: '#ffffff', // Force white text on accent
-                }}
+                className={`av-test-btn ${isTesting ? 'av-test-btn--active' : ''}`}
+                onClick={() => setIsTesting(!isTesting)}
+                disabled={micDevices.length === 0}
               >
-                <span className="text-xl">▶</span>
-                {t.DashboardPage.button_start}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                  <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                </svg>
+                {isTesting ? 'Stop Test' : 'Test Mic'}
+              </button>
+            )}
+
+            {/* Audio Meter - show when testing or live */}
+            {(isTesting || isLive) && (
+              <div className={`av-meter ${(isTesting || isMicEnabled) ? 'av-meter--active' : ''}`}>
+                {meterLevels.map((h, i) => (
+                  <div
+                    key={i}
+                    className="av-meter__bar"
+                    style={{ height: `${Math.min(100, h)}%` }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Mute Button - only show when live */}
+            {isLive && (
+              <button
+                className={`av-mic-btn ${!isMicEnabled ? 'av-mic-btn--muted' : ''}`}
+                onClick={toggleMicrophone}
+              >
+                {isMicEnabled ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/>
+                    <path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                )}
+                {isMicEnabled ? 'Mute' : 'Unmute'}
+              </button>
+            )}
+
+            {micError && <p className="av-mic-error">{micError}</p>}
+          </div>
+
+          {/* Languages Section */}
+          <div className="av-section">
+            <span className="av-section__title">Languages</span>
+            <div className="av-langs">
+              <span className="av-lang-tag av-lang-tag--input">
+                {t.languages[(user?.input_lang || 'ar') as keyof typeof t.languages] || user?.input_lang}
+              </span>
+              <span className="av-lang-tag av-lang-tag--arrow">→</span>
+              {user?.output_langs.map((lang) => (
+                <span key={lang} className="av-lang-tag">
+                  {t.languages[lang as keyof typeof t.languages] || lang}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Listener Link Section */}
+          <div className="av-section">
+            <span className="av-section__title">Listener Link</span>
+            <div className="av-link-box">
+              <span className="av-link-text">
+                {listenerLink ? listenerLink.replace(/^https?:\/\//, '') : ''}
+              </span>
+              <button className="av-copy-btn" onClick={copyLink} disabled={!listenerLink}>
+                {copied ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                )}
               </button>
             </div>
-          ) : (
-            // Active State: Full Controls
-            <div className="relative space-y-8 animate-fade-in">
-              <div className="flex items-center justify-between gap-6 flex-wrap">
-                {/* Timer Section */}
-                <div className="flex items-center gap-6">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>
-                      {t.DashboardPage.timer_label}
-                    </p>
-                    <TimerDisplay value={formattedTimer} />
-                    <div className="mt-3">
-                      {isLive ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
-                          style={{
-                            background: 'rgba(16,185,129,0.1)',
-                            color: 'var(--color-live)',
-                            borderColor: 'rgba(16,185,129,0.2)',
-                          }}
-                        >
-                          <HeartbeatIcon />
-                          {t.DashboardPage.status_excellent}
-                        </span>
-                      ) : (
-                        <span
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border"
-                          style={{
-                            background: 'var(--color-baian-sand)', 
-                            opacity: 0.2,
-                            color: 'var(--color-text-muted)',
-                            borderColor: 'var(--color-border)',
-                          }}
-                        >
-                          {t.common.loading}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Audio Meter */}
-                <div className="flex flex-col items-center gap-2 flex-1 min-w-[200px]">
-                  <AudioMeter
-                    levels={meterLevels}
-                    state={isLive ? (isMicEnabled ? 'live' : 'muted') : 'idle'}
-                  />
-                  <p className="text-[10px] uppercase tracking-widest font-bold opacity-50" style={{ color: 'var(--color-text-muted)' }}>
-                    {t.DashboardPage.input_level}
-                  </p>
-                </div>
-
-                {/* Action Button */}
-                <div className="flex flex-col items-end gap-2">
-                   {isLive ? (
-                    <button
-                      onClick={stopSession}
-                      disabled={isStopping}
-                      className="px-8 h-16 rounded-2xl font-semibold text-lg transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-lg hover:shadow-xl disabled:opacity-60"
-                      style={{
-                        background: 'var(--color-bg-elevated)', // Inverted look for stop
-                        color: 'var(--color-text)',
-                        border: '1px solid var(--color-border)',
-                      }}
-                    >
-                      {isStopping ? t.common.loading : t.DashboardPage.button_stop}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={cancelSession}
-                      disabled={isStopping}
-                      className="px-8 h-16 rounded-2xl font-semibold text-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
-                      style={{
-                        background: 'var(--color-bg)',
-                        color: 'var(--color-danger)',
-                        border: '1px solid var(--color-danger)',
-                      }}
-                    >
-                      {isStopping ? t.common.loading : t.common.cancel}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Audio Configuration Section (Live) */}
-              <div className="rounded-3xl border overflow-hidden shadow-baian" style={{ 
-                  background: 'var(--color-bg-elevated)', 
-                  borderColor: 'var(--color-border)',
-                  marginTop: '2rem' 
-                }}>
-                <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-                   <h3 className="font-display font-semibold tracking-wide" style={{ color: 'var(--color-text)' }}>
-                      Audio Configuration
-                    </h3>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Microphone Input</label>
-                    <span className="text-xs opacity-50" style={{ color: 'var(--color-text-muted)' }}>Select sources</span>
-                  </div>
-                  
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                      <div className="relative">
-                         <select
-                          value={selectedMicId}
-                          onChange={(e) => handleSelectMic(e.target.value)}
-                          className="w-full pl-4 pr-10 py-3.5 rounded-xl text-sm appearance-none cursor-pointer transition-all hover:border-opacity-50"
-                          style={{
-                            background: 'rgba(0,0,0,0.2)', // Dark inset
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: 'var(--color-text)',
-                          }}
-                          disabled={micDevices.length === 0}
-                        >
-                          {micDevices.length === 0 && <option value="">No microphones detected</option>}
-                          {micDevices.map((device) => (
-                            <option key={device.deviceId} value={device.deviceId}>
-                              {device.label || 'Microphone'}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40" style={{ color: 'var(--color-text)' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={toggleMicrophone}
-                      disabled={!isLive}
-                      className="h-[50px] px-6 rounded-xl flex items-center gap-2 text-sm font-semibold transition-colors shrink-0 border"
-                      style={{
-                        background: isMicEnabled ? 'rgba(255,255,255,0.05)' : 'rgba(239,68,68,0.2)', // Red tint when muted
-                        borderColor: isMicEnabled ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.4)',
-                        color: isMicEnabled ? 'var(--color-text)' : 'var(--color-danger)',
-                      }}
-                      type="button"
-                    >
-                      {isMicEnabled ? <MicIcon /> : <MicOffIcon />}
-                      {isMicEnabled ? t.DashboardPage.button_mute : t.DashboardPage.button_unmute}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {(micError || meterError) && (
-                <div
-                  className="px-4 py-3 rounded-xl text-sm"
-                  style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger)' }}
-                >
-                  {micError || meterError}
-                </div>
-              )}
-
-              {/* Error Message */}
-              {error && (
-                <div
-                  className="flex items-center justify-between px-6 py-4 rounded-2xl"
-                  style={{ background: 'var(--color-danger-muted)', color: 'var(--color-danger)' }}
-                >
-                  <span className="text-sm font-medium">{error}</span>
-                  <button onClick={clearError} className="text-sm font-bold hover:underline">
-                    {t.common.dismiss}
-                  </button>
-                </div>
-              )}
-
-              {/* Connecting/Waiting states */}
-              {isConnecting && <ConnectingState />}
-              {isWaitingAgent && <WaitingAgentState />}
-              {isAgentReconnecting && <AgentReconnectingState />}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* System Health - Moved here to match layout better if possible, or keep 2 cols */}
-           <div className="lg:col-span-2 space-y-6">
-             <div
-                className="rounded-[2rem] p-0 h-full shadow-baian overflow-hidden"
-                style={{
-                  background: 'var(--color-bg-elevated)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-                   <h3 className="font-display font-semibold tracking-wide" style={{ color: 'var(--color-text)' }}>
-                      {t.DashboardPage.card_lang_title}
-                    </h3>
-                </div>
-                <div className="p-6 grid grid-cols-2 gap-8">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider mb-2 opacity-50" style={{ color: 'var(--color-text-muted)' }}>
-                      {t.DashboardPage.label_speaking}
-                    </p>
-                    <p className="font-medium text-lg" style={{ color: 'var(--color-text)' }}>
-                      {t.languages[(user?.input_lang || 'ar') as keyof typeof t.languages] || user?.input_lang}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider mb-2 opacity-50" style={{ color: 'var(--color-text-muted)' }}>
-                      {t.DashboardPage.label_translating_to}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {user?.output_langs.map((lang) => (
-                        <span
-                          key={lang}
-                          className="px-3 py-1.5 rounded-lg text-sm font-medium"
-                          style={{
-                            background: 'var(--color-bg-inset)',
-                            color: 'var(--color-text)',
-                          }}
-                        >
-                          {t.languages[lang as keyof typeof t.languages] || lang}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-           </div>
-
-          <div className="lg:col-span-1">
-             <ListenerCard
-              listenerLink={listenerLink}
-              copied={copied}
-              copyLink={copyLink}
-            />
           </div>
-        </div>
+        </aside>
       </div>
 
       {/* Force Stop Modal */}
       {showForceStopModal && (
-        <ForceStopModal
-          onConfirm={forceStopAndRestart}
-          onCancel={dismissForceStopModal}
-        />
+        <div className="av-modal-backdrop">
+          <div className="av-modal">
+            <h3>Active Session Found</h3>
+            <p>You have an active session. Would you like to end it and start a new one?</p>
+            <div className="av-modal__actions">
+              <button className="av-modal__btn av-modal__btn--cancel" onClick={dismissForceStopModal}>
+                Cancel
+              </button>
+              <button className="av-modal__btn av-modal__btn--confirm" onClick={forceStopAndRestart}>
+                Stop & Restart
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
+      <style>{`
+        .av-dashboard {
+          display: grid;
+          grid-template-columns: 1fr 340px;
+          min-height: calc(100vh - 80px);
+          background: var(--color-bg);
+          border-radius: 24px;
+          overflow: hidden;
+          border: 1px solid var(--color-border);
+        }
+
+        @media (max-width: 900px) {
+          .av-dashboard {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        /* Hero */
+        .av-hero {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 48px;
+          padding: 48px;
+          position: relative;
+          border-right: 1px solid var(--color-border);
+        }
+
+        .av-hero--live {
+          background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.06) 0%, transparent 60%);
+        }
+
+        /* Status */
+        .av-status {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .av-status__dot {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.2);
+        }
+
+        .av-status__dot--live {
+          background: #10b981;
+          box-shadow: 0 0 24px #10b981, 0 0 48px rgba(16, 185, 129, 0.3);
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(0.95); }
+        }
+
+        /* Timer group wrapper with animation */
+        .av-timer-group {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 48px;
+        }
+
+        .av-timer-group.animate-in {
+          animation: timerReveal 0.4s ease-out forwards;
+        }
+
+        @keyframes timerReveal {
+          0% {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .av-status__text {
+          font-size: 28px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--color-text-muted);
+        }
+
+        .av-status__text--live {
+          color: #10b981;
+        }
+
+        /* Timer */
+        .av-timer {
+          font-size: 96px;
+          font-weight: 200;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.03em;
+          color: var(--color-text);
+          line-height: 1;
+          display: flex;
+          align-items: center;
+        }
+
+        .av-timer__colon {
+          opacity: 0.4;
+          margin: 0 4px;
+        }
+
+        /* Main Button */
+        .av-main-btn {
+          min-width: 220px;
+          height: 68px;
+          border-radius: 18px;
+          border: none;
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .av-main-btn--start {
+          background: var(--color-accent);
+          color: white;
+          box-shadow: 0 8px 32px rgba(7, 108, 95, 0.35);
+        }
+
+        .av-main-btn--start:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 40px rgba(7, 108, 95, 0.45);
+        }
+
+        .av-main-btn--stop {
+          background: rgba(255,255,255,0.08);
+          color: var(--color-text);
+          border: 1px solid var(--color-border);
+        }
+
+        .av-main-btn--stop:hover {
+          background: rgba(239, 68, 68, 0.15);
+          border-color: rgba(239, 68, 68, 0.3);
+          color: var(--color-danger);
+        }
+
+        .av-main-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* Error */
+        .av-error {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 12px;
+          color: var(--color-danger);
+          font-size: 14px;
+        }
+
+        .av-error button {
+          background: none;
+          border: none;
+          color: inherit;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+
+        /* Sidebar */
+        .av-sidebar {
+          background: rgba(0,0,0,0.15);
+          padding: 28px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 28px;
+          overflow-y: auto;
+        }
+
+        .av-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .av-section__title {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: var(--color-text-muted);
+          opacity: 0.5;
+        }
+
+        /* Select */
+        .av-select {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid var(--color-border);
+          border-radius: 12px;
+          padding: 14px 16px;
+          color: var(--color-text);
+          font-size: 14px;
+          width: 100%;
+          appearance: none;
+          cursor: pointer;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 14px center;
+        }
+
+        .av-select:focus {
+          outline: none;
+          border-color: var(--color-accent);
+        }
+
+        /* Meter */
+        .av-meter {
+          display: flex;
+          gap: 4px;
+          height: 48px;
+          align-items: flex-end;
+          background: rgba(0,0,0,0.2);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
+        .av-meter__bar {
+          flex: 1;
+          background: rgba(255,255,255,0.12);
+          border-radius: 2px;
+          transition: height 0.1s, background 0.1s;
+        }
+
+        .av-meter--active .av-meter__bar {
+          background: #10b981;
+        }
+
+        /* Mic Button */
+        .av-mic-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px;
+          border-radius: 10px;
+          border: 1px solid var(--color-border);
+          background: rgba(255,255,255,0.05);
+          color: var(--color-text);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .av-mic-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .av-mic-btn--muted {
+          background: rgba(239, 68, 68, 0.15);
+          border-color: rgba(239, 68, 68, 0.3);
+          color: var(--color-danger);
+        }
+
+        /* Test Button */
+        .av-test-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px;
+          border-radius: 10px;
+          border: 1px solid var(--color-border);
+          background: rgba(255,255,255,0.05);
+          color: var(--color-text-muted);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .av-test-btn:hover {
+          background: rgba(255,255,255,0.1);
+          color: var(--color-text);
+        }
+
+        .av-test-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .av-test-btn--active {
+          background: var(--color-accent);
+          border-color: var(--color-accent);
+          color: white;
+        }
+
+        .av-test-btn--active:hover {
+          background: var(--color-accent);
+          opacity: 0.9;
+        }
+
+        .av-mic-error {
+          font-size: 12px;
+          color: var(--color-danger);
+          margin: 0;
+        }
+
+        /* Languages */
+        .av-langs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .av-lang-tag {
+          padding: 8px 12px;
+          background: rgba(255,255,255,0.06);
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--color-text);
+          opacity: 0.8;
+        }
+
+        .av-lang-tag--input {
+          background: var(--color-accent);
+          color: white;
+          opacity: 1;
+        }
+
+        .av-lang-tag--arrow {
+          background: transparent;
+          color: var(--color-text-muted);
+          padding: 8px 4px;
+          opacity: 0.4;
+        }
+
+        /* Link */
+        .av-link-box {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(0,0,0,0.3);
+          border-radius: 10px;
+          padding: 12px 14px;
+          border: 1px solid var(--color-border);
+        }
+
+        .av-link-text {
+          flex: 1;
+          font-size: 12px;
+          font-family: 'SF Mono', Monaco, monospace;
+          color: var(--color-text);
+          opacity: 0.7;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .av-copy-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          border: none;
+          background: rgba(255,255,255,0.08);
+          color: var(--color-accent);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .av-copy-btn:hover {
+          background: var(--color-accent);
+          color: white;
+        }
+
+        .av-copy-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        /* Modal */
+        .av-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(8px);
+        }
+
+        .av-modal {
+          width: 100%;
+          max-width: 400px;
+          margin: 16px;
+          padding: 32px;
+          background: var(--color-bg-elevated);
+          border: 1px solid var(--color-border);
+          border-radius: 24px;
+        }
+
+        .av-modal h3 {
+          font-size: 20px;
+          font-weight: 700;
+          color: var(--color-text);
+          margin: 0 0 12px 0;
+        }
+
+        .av-modal p {
+          font-size: 15px;
+          color: var(--color-text-muted);
+          margin: 0 0 24px 0;
+          line-height: 1.5;
+        }
+
+        .av-modal__actions {
+          display: flex;
+          gap: 12px;
+        }
+
+        .av-modal__btn {
+          flex: 1;
+          padding: 14px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .av-modal__btn--cancel {
+          background: var(--color-bg-inset);
+          border: 1px solid var(--color-border);
+          color: var(--color-text);
+        }
+
+        .av-modal__btn--confirm {
+          background: var(--color-danger);
+          border: none;
+          color: white;
+        }
+      `}</style>
     </Layout>
-  )
-}
-
-function ConnectingState() {
-  const { t } = useLanguage()
-  return (
-    <div className="flex items-center gap-4 py-4 border-t border-dashed" style={{ borderColor: 'var(--color-border)' }}>
-      <div 
-        className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-        style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }}
-      />
-      <div>
-        <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>
-          {t.DashboardPage.msg_connecting}
-        </p>
-        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {t.DashboardPage.msg_wait_seconds}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function WaitingAgentState() {
-  const [showHint, setShowHint] = useState(false)
-  const { t } = useLanguage()
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowHint(true), 30000)
-    return () => clearTimeout(timer)
-  }, [])
-
-  return (
-    <div className="py-4 border-t border-dashed" style={{ borderColor: 'var(--color-border)' }}>
-      <div className="flex items-center gap-4 mb-4">
-        <div 
-          className="w-8 h-8 rounded-full animate-pulse flex items-center justify-center"
-          style={{ background: 'var(--color-warning-muted)' }}
-        >
-          <span style={{ color: 'var(--color-warning)' }}>⏳</span>
-        </div>
-        <div>
-          <p className="font-medium" style={{ color: 'var(--color-text)' }}>
-            {t.DashboardPage.msg_waiting_interpreter}
-          </p>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {t.DashboardPage.msg_mic_enabled}
-          </p>
-        </div>
-      </div>
-      
-      {showHint && (
-        <div
-          className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'var(--color-warning-muted)', color: 'var(--color-warning)' }}
-        >
-          Taking longer than usual. The interpreter service may be starting up—please wait a moment.
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AgentReconnectingState() {
-  const { t } = useLanguage()
-  return (
-    <div className="flex items-center gap-4 py-4 border-t border-dashed" style={{ borderColor: 'var(--color-border)' }}>
-      <div 
-        className="w-8 h-8 rounded-full animate-pulse flex items-center justify-center"
-        style={{ background: 'var(--color-warning-muted)' }}
-      >
-        <span style={{ color: 'var(--color-warning)' }}>🔄</span>
-      </div>
-      <div>
-        <p className="font-medium" style={{ color: 'var(--color-text)' }}>
-          {t.DashboardPage.msg_interpreter_reconnecting}
-        </p>
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {t.DashboardPage.msg_session_paused}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-interface ListenerCardProps {
-  listenerLink: string | null
-  copied: boolean
-  copyLink: () => void
-}
-
-function ListenerCard({ listenerLink, copied, copyLink }: ListenerCardProps) {
-  const { t } = useLanguage()
-  return (
-    <div
-      className="rounded-[2rem] p-6 h-full flex flex-col gap-6 shadow-baian"
-      style={{ background: 'var(--color-deep-teal-card)', border: '1px solid var(--color-border)' }}
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-lg font-semibold font-display tracking-wide" style={{ color: 'white' }}>
-            {t.DashboardPage.card_listener_title}
-          </p>
-          <p className="text-baian-sand/60 text-sm mt-1" style={{ color: 'rgba(234, 215, 197, 0.6)' }}>
-            {t.DashboardPage.card_listener_subtitle}
-          </p>
-        </div>
-        <div
-          className="bg-white/10 p-2 rounded-lg"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ead7c5" strokeWidth="2">
-             <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-             <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-             <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-             <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-             <rect x="7" y="7" width="3" height="3" rx="1" />
-             <rect x="14" y="7" width="3" height="3" rx="1" />
-             <rect x="7" y="14" width="3" height="3" rx="1" />
-             <path d="M14 17h3" />
-          </svg>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 bg-black/20 p-1.5 rounded-xl border border-white/5 mt-auto">
-        <div
-          className="flex-1 px-3 py-2 text-sm font-mono truncate select-all"
-          dir="ltr"
-          style={{
-            color: '#ead7c5', // baian-sand
-          }}
-        >
-           {listenerLink ? listenerLink.replace(/^https?:\/\//, '') : ''}
-        </div>
-        <button
-          onClick={copyLink}
-          disabled={!listenerLink}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          style={{
-            color: copied ? 'var(--color-live)' : 'var(--color-baian-emerald)',
-          }}
-          type="button"
-        >
-          {copied ? (
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-          ) : (
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          )}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// Icons
-function TimerDisplay({ value }: { value: string }) {
-  // Timer is always LTR
-  return (
-    <div className="flex items-center timer-display" dir="ltr" style={{ color: 'var(--color-text)' }}>
-      <span className="text-6xl md:text-7xl font-mono font-light tabular-nums tracking-tighter">{value.split(':')[0]}</span>
-      <span className="timer-colon opacity-50" aria-hidden="true">
-        <span />
-        <span />
-      </span>
-      <span className="text-6xl md:text-7xl font-mono font-light tabular-nums tracking-tighter">{value.split(':')[1]}</span>
-    </div>
-  )
-}
-
-function HeartbeatIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="4 12 8 12 11 5 13 19 16 12 20 12" />
-    </svg>
-  )
-}
-
-function AudioMeter({ levels, state }: { levels: number[]; state: 'idle' | 'live' | 'muted' }) {
-  if (state !== 'live') {
-    return (
-      <div className="h-12 w-full max-w-[120px] flex items-end justify-center gap-[3px]">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="w-1.5 rounded-t-sm transition-all duration-100"
-            style={{
-              height: '50%',
-              background: 'rgba(255,255,255,0.1)'
-            }}
-          />
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-end justify-center gap-[3px] h-12 w-full max-w-[120px]">
-      {levels.map((h, idx) => (
-        <div
-          key={idx}
-          className="w-1.5 rounded-t-sm transition-all duration-100"
-          style={{
-            height: `${Math.min(100, Math.max(10, (h / 50) * 100))}%`,
-            background: 'var(--color-live)',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-function MicIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
-  )
-}
-
-function MicOffIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="1" y1="1" x2="23" y2="23" />
-      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
-      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
-  )
-}
-
-interface ForceStopModalProps {
-  onConfirm: () => void
-  onCancel: () => void
-}
-
-function ForceStopModal({ onConfirm, onCancel }: ForceStopModalProps) {
-  const { t } = useLanguage()
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-        onClick={onCancel}
-      />
-      
-      {/* Modal */}
-      <div 
-        className="relative z-10 w-full max-w-md mx-4 p-8 rounded-3xl shadow-2xl"
-        style={{ 
-          background: 'var(--color-bg-elevated)',
-          border: '1px solid var(--color-border)',
-        }}
-      >
-        <h3 className="text-xl font-bold font-display mb-3" style={{ color: 'var(--color-text)' }}>
-          {t.DashboardPage.modal_active_title}
-        </h3>
-        <p className="mb-8 text-lg" style={{ color: 'var(--color-text-muted)' }}>
-          {t.DashboardPage.modal_active_body}
-        </p>
-        
-        <div className="flex gap-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-6 py-3 rounded-xl font-medium transition-colors"
-            style={{
-              background: 'var(--color-bg-inset)',
-              color: 'var(--color-text)',
-            }}
-          >
-            {t.common.cancel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-6 py-3 rounded-xl font-bold transition-colors shadow-lg"
-            style={{
-              background: 'var(--color-danger)',
-              color: 'white',
-              boxShadow: '0 4px 14px var(--color-danger-muted)'
-            }}
-          >
-            {t.DashboardPage.button_stop_restart}
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }

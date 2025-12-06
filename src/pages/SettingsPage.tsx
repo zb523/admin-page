@@ -37,6 +37,17 @@ export function SettingsPage() {
     }
   }, [user])
 
+  // When inputLang changes, remove it from outputLangs if present
+  useEffect(() => {
+    if (outputLangs.includes(inputLang)) {
+      const filtered = outputLangs.filter(lang => lang !== inputLang)
+      // Ensure at least one output language remains
+      if (filtered.length > 0) {
+        setOutputLangs(filtered)
+      }
+    }
+  }, [inputLang, outputLangs])
+
   const hasChanges = user && (
     name !== user.name ||
     inputLang !== user.input_lang ||

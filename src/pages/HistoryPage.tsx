@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Layout } from '@/components/Layout'
 import { SessionCard } from '@/components/SessionCard'
-import { CollectionsList } from '@/components/CollectionsList'
-import { AddToCollectionModal } from '@/components/AddToCollectionModal'
 import { useSession } from '@/hooks/useSession'
 import { useLanguage } from '@/hooks/useLanguage'
-import { useCollections } from '@/hooks/useCollections'
 import { deleteSession, updateSession } from '@/lib/api'
 import type { SessionListItem } from '@/types'
 
 export function HistoryPage() {
   const { fetchSessions } = useSession()
   const { t } = useLanguage()
-  const { addSessionsToCollection, cleanupDeletedSessions } = useCollections()
   
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,12 +21,8 @@ export function HistoryPage() {
   const [isSaving, setIsSaving] = useState(false)
   
   // Selection Mode State
-  const [activeTab, setActiveTab] = useState<'sessions' | 'collections'>('sessions')
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set())
-  
-  // Modal State
-  const [showAddToCollection, setShowAddToCollection] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -83,7 +75,6 @@ export function HistoryPage() {
 
     try {
       await deleteSession(sessionId)
-      cleanupDeletedSessions([sessionId])
     } catch (err) {
       console.error('Failed to delete session:', err)
       // Revert on failure - refetch
@@ -109,7 +100,6 @@ export function HistoryPage() {
 
     try {
       await Promise.all(idsToDelete.map(id => deleteSession(id)))
-      cleanupDeletedSessions(idsToDelete)
     } catch (err) {
       console.error('Failed to delete sessions:', err)
       // Revert - refetch
@@ -118,13 +108,6 @@ export function HistoryPage() {
     } finally {
       setIsDeletingMultiple(false)
     }
-  }
-
-  const handleAddToCollection = (collectionId: string) => {
-    addSessionsToCollection(collectionId, Array.from(selectedSessionIds))
-    setShowAddToCollection(false)
-    setSelectedSessionIds(new Set())
-    setIsSelectionMode(false)
   }
 
   const toggleSelection = (sessionId: string) => {
@@ -164,35 +147,9 @@ export function HistoryPage() {
             </p>
           </div>
 
-          {/* Tabs & Actions */}
+          {/* Actions */}
           <div className="flex items-center gap-3">
-            <div 
-              className="p-1 rounded-full flex shadow-sm" 
-              style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)' }}
-            >
-              <button
-                onClick={() => { setActiveTab('sessions'); setIsSelectionMode(false); }}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  activeTab === 'sessions' 
-                    ? 'bg-[var(--color-accent)] text-white shadow-sm' 
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                {t.common.sessions}
-              </button>
-              <button
-                onClick={() => { setActiveTab('collections'); setIsSelectionMode(false); }}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  activeTab === 'collections' 
-                    ? 'bg-[var(--color-accent)] text-white shadow-sm' 
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                {t.common.collections}
-              </button>
-            </div>
-
-            {activeTab === 'sessions' && pastSessions.length > 0 && (
+            {pastSessions.length > 0 && (
               <button
                 onClick={() => {
                   setIsSelectionMode(!isSelectionMode)
@@ -219,197 +176,187 @@ export function HistoryPage() {
           </div>
         ) : (
           <>
-            {/* Sessions Tab */}
-            {activeTab === 'sessions' && (
-              <>
-                {sessions.length === 0 ? (
-                  <div
-                    className="rounded-3xl p-12 text-center"
-                    style={{
-                      background: 'var(--color-bg-elevated)',
-                      border: '1px solid var(--color-border)',
-                    }}
+            {sessions.length === 0 ? (
+              <div
+                className="rounded-3xl p-12 text-center"
+                style={{
+                  background: 'var(--color-bg-elevated)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <div
+                  className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                  style={{ background: 'var(--color-bg)' }}
+                >
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ color: 'var(--color-text-dim)' }}
                   >
-                    <div
-                      className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                      style={{ background: 'var(--color-bg)' }}
-                    >
-                      <svg
-                        width="32"
-                        height="32"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        style={{ color: 'var(--color-text-dim)' }}
-                      >
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
+                  {t.HistoryPage.empty_title}
+                </h3>
+                <p style={{ color: 'var(--color-text-muted)' }}>
+                  {t.HistoryPage.empty_subtitle}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Live Sessions (Always unselectable) */}
+                {liveSessions.length > 0 && (
+                  <section>
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+                      <span
+                        className="w-2 h-2 rounded-full animate-pulse-live"
+                        style={{ background: 'var(--color-live)' }}
+                      />
+                      {t.HistoryPage.section_live}
+                    </h2>
+                    <div className="space-y-3">
+                      {liveSessions.map((session) => (
+                        <SessionCard key={session.id} session={session} />
+                      ))}
                     </div>
-                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-                      {t.HistoryPage.empty_title}
-                    </h3>
-                    <p style={{ color: 'var(--color-text-muted)' }}>
-                      {t.HistoryPage.empty_subtitle}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    {/* Live Sessions (Always unselectable) */}
-                    {liveSessions.length > 0 && (
-                      <section>
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-                          <span
-                            className="w-2 h-2 rounded-full animate-pulse-live"
-                            style={{ background: 'var(--color-live)' }}
-                          />
-                          {t.HistoryPage.section_live}
-                        </h2>
-                        <div className="space-y-3">
-                          {liveSessions.map((session) => (
-                            <SessionCard key={session.id} session={session} />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Past Sessions */}
-                    {pastSessions.length > 0 && (
-                      <section>
-                        <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-lg font-semibold font-display" style={{ color: 'var(--color-text)' }}>
-                            {t.HistoryPage.section_past}
-                          </h2>
-                          {isSelectionMode && (
-                            <button
-                              onClick={() => toggleSelectAll(pastSessions)}
-                              className="text-sm font-medium hover:underline"
-                              style={{ color: 'var(--color-accent)' }}
-                            >
-                              {selectedSessionIds.size === pastSessions.length ? t.common.deselect_all : t.common.select_all}
-                            </button>
-                          )}
-                        </div>
-                        {/* Ghost Table Style - Minimal dividers */}
-                        <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden shadow-baian">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-[var(--color-bg-inset)] border-b border-[var(--color-border)]">
-                              <tr>
-                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Date</th>
-                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Event Title</th>
-                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Duration</th>
-                                <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)] text-right">Listeners</th>
-                                <th className="px-6 py-4"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--color-border)]">
-                              {pastSessions.map((session) => {
-                                const isEditing = editingId === session.id
-                                
-                                return (
-                                  <tr key={session.id} className="hover:bg-[var(--color-bg-hover)] transition-colors group">
-                                    <td className="px-6 py-4 text-[var(--color-text)] opacity-80">
-                                      {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-[var(--color-text)]">
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-2">
-                                          <input 
-                                            type="text"
-                                            value={editTitle}
-                                            onChange={(e) => setEditTitle(e.target.value)}
-                                            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm w-full max-w-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                              if(e.key === 'Enter') handleSaveEdit(session.id)
-                                              if(e.key === 'Escape') handleCancelEdit()
-                                            }}
-                                          />
-                                          <div className="flex items-center gap-1">
-                                            <button 
-                                              onClick={() => handleSaveEdit(session.id)}
-                                              disabled={isSaving}
-                                              className="p-1.5 rounded-md text-[var(--color-live)] hover:bg-[var(--color-live-muted)] transition-colors"
-                                            >
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                            </button>
-                                            <button 
-                                              onClick={handleCancelEdit}
-                                              className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] transition-colors"
-                                            >
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        session.title || t.common.untitled_session
-                                      )}
-                                    </td>
-                                    <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs">
-                                      {session.ended_at ? (
-                                        (() => {
-                                          const diff = new Date(session.ended_at).getTime() - new Date(session.created_at).getTime()
-                                          const mins = Math.floor(diff / 60000)
-                                          return mins < 60 ? `${mins}m` : `${Math.floor(mins/60)}h ${mins%60}m`
-                                        })()
-                                      ) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs text-right">
-                                      -
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                      {!isEditing && (
-                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          {/* Edit Button */}
-                                          <button 
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleStartEdit(session)
-                                            }}
-                                            className="p-2 rounded-lg text-[var(--color-accent)] hover:bg-[var(--color-bg)] transition-colors"
-                                            title="Edit Name"
-                                          >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                            </svg>
-                                          </button>
-                                          
-                                          {/* Delete Button */}
-                                          <button 
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if(!isSelectionMode) handleDelete(session.id);
-                                              else toggleSelection(session.id);
-                                            }}
-                                            className="p-2 rounded-lg text-[var(--color-danger)] hover:bg-[var(--color-danger-muted)] transition-colors"
-                                            title="Delete"
-                                          >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                              <path d="M3 6h18" />
-                                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                            </svg>
-                                          </button>
-                                        </div>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </section>
-                    )}
-                  </div>
+                  </section>
                 )}
-              </>
-            )}
 
-            {/* Collections Tab */}
-            {activeTab === 'collections' && (
-              <CollectionsList sessions={sessions} />
+                {/* Past Sessions */}
+                {pastSessions.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold font-display" style={{ color: 'var(--color-text)' }}>
+                        {t.HistoryPage.section_past}
+                      </h2>
+                      {isSelectionMode && (
+                        <button
+                          onClick={() => toggleSelectAll(pastSessions)}
+                          className="text-sm font-medium hover:underline"
+                          style={{ color: 'var(--color-accent)' }}
+                        >
+                          {selectedSessionIds.size === pastSessions.length ? t.common.deselect_all : t.common.select_all}
+                        </button>
+                      )}
+                    </div>
+                    {/* Ghost Table Style - Minimal dividers */}
+                    <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden shadow-baian">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-[var(--color-bg-inset)] border-b border-[var(--color-border)]">
+                          <tr>
+                            <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Date</th>
+                            <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Event Title</th>
+                            <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)]">Duration</th>
+                            <th className="px-6 py-4 font-semibold text-[var(--color-text-muted)] text-right">Listeners</th>
+                            <th className="px-6 py-4"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--color-border)]">
+                          {pastSessions.map((session) => {
+                            const isEditing = editingId === session.id
+                            
+                            return (
+                              <tr key={session.id} className="hover:bg-[var(--color-bg-hover)] transition-colors group">
+                                <td className="px-6 py-4 text-[var(--color-text)] opacity-80">
+                                  {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </td>
+                                <td className="px-6 py-4 font-medium text-[var(--color-text)]">
+                                  {isEditing ? (
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="text"
+                                        value={editTitle}
+                                        onChange={(e) => setEditTitle(e.target.value)}
+                                        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm w-full max-w-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if(e.key === 'Enter') handleSaveEdit(session.id)
+                                          if(e.key === 'Escape') handleCancelEdit()
+                                        }}
+                                      />
+                                      <div className="flex items-center gap-1">
+                                        <button 
+                                          onClick={() => handleSaveEdit(session.id)}
+                                          disabled={isSaving}
+                                          className="p-1.5 rounded-md text-[var(--color-live)] hover:bg-[var(--color-live-muted)] transition-colors"
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                        </button>
+                                        <button 
+                                          onClick={handleCancelEdit}
+                                          className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] transition-colors"
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    session.title || t.common.untitled_session
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs">
+                                  {session.ended_at ? (
+                                    (() => {
+                                      const diff = new Date(session.ended_at).getTime() - new Date(session.created_at).getTime()
+                                      const mins = Math.floor(diff / 60000)
+                                      return mins < 60 ? `${mins}m` : `${Math.floor(mins/60)}h ${mins%60}m`
+                                    })()
+                                  ) : '-'}
+                                </td>
+                                <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono text-xs text-right">
+                                  -
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {!isEditing && (
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {/* Edit Button */}
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleStartEdit(session)
+                                        }}
+                                        className="p-2 rounded-lg text-[var(--color-accent)] hover:bg-[var(--color-bg)] transition-colors"
+                                        title="Edit Name"
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                        </svg>
+                                      </button>
+                                      
+                                      {/* Delete Button */}
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if(!isSelectionMode) handleDelete(session.id);
+                                          else toggleSelection(session.id);
+                                        }}
+                                        className="p-2 rounded-lg text-[var(--color-danger)] hover:bg-[var(--color-danger-muted)] transition-colors"
+                                        title="Delete"
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <path d="M3 6h18" />
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+              </div>
             )}
           </>
         )}
@@ -430,13 +377,6 @@ export function HistoryPage() {
               </div>
               <div className="h-6 w-px" style={{ background: 'var(--color-border)' }} />
               <button
-                onClick={() => setShowAddToCollection(true)}
-                className="px-4 py-2 rounded-full font-medium transition-colors hover:bg-[var(--color-bg-hover)]"
-                style={{ color: 'var(--color-text)' }}
-              >
-                {t.common.add_to_collection}
-              </button>
-              <button
                 onClick={handleMassDelete}
                 className="px-4 py-2 rounded-full font-medium transition-colors hover:bg-[var(--color-danger-muted)]"
                 style={{ color: 'var(--color-danger)' }}
@@ -445,15 +385,6 @@ export function HistoryPage() {
               </button>
             </div>
           </div>
-        )}
-
-        {/* Add to Collection Modal */}
-        {showAddToCollection && (
-          <AddToCollectionModal
-            selectedCount={selectedSessionIds.size}
-            onConfirm={handleAddToCollection}
-            onCancel={() => setShowAddToCollection(false)}
-          />
         )}
       </div>
     </Layout>

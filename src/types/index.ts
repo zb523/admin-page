@@ -22,15 +22,6 @@ export interface Session {
   ended_at: string | null
 }
 
-// Collection record
-export interface Collection {
-  id: string
-  name: string
-  session_ids: string[]
-  created_at: string
-  updated_at: string
-}
-
 // Session list item (same as Session for now)
 export type SessionListItem = Session
 

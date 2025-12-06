@@ -13,7 +13,9 @@ import {
   toggleMicrophone as toggleMic,
   getRemoteParticipants,
   isAgentParticipant,
+  setAudioInputDevice,
 } from '@/lib/livekit'
+import { MIC_STORAGE_KEY } from './useMicDevices'
 import type { Room } from 'livekit-client'
 import type { Session, SessionListItem } from '@/types'
 
@@ -67,8 +69,12 @@ export function useSession() {
             console.log('[useSession] Agent joined:', participant.identity)
             // Use store action to persist across navigation
             useStore.getState().setSessionPhase('live')
-            // Enable mic when agent joins
+            // Set selected mic device and enable when agent joins
             if (roomRef.current) {
+              const storedMicId = localStorage.getItem(MIC_STORAGE_KEY)
+              if (storedMicId) {
+                setAudioInputDevice(roomRef.current, storedMicId).catch(console.error)
+              }
               enableMicrophone(roomRef.current).catch(console.error)
             }
           }
@@ -97,6 +103,11 @@ export function useSession() {
       if (agentPresent) {
         console.log('[useSession] Agent already in room')
         setSessionPhase('live')
+        // Set selected mic device before enabling
+        const storedMicId = localStorage.getItem(MIC_STORAGE_KEY)
+        if (storedMicId) {
+          await setAudioInputDevice(room, storedMicId)
+        }
         await enableMicrophone(room)
       } else {
         console.log('[useSession] Waiting for agent to join...')
@@ -218,7 +229,7 @@ export function useSession() {
   // Generate shareable listener link
   const getListenerLink = useCallback(() => {
     if (!user) return null
-    return `https://listen.baian.app/${user.slug}`
+    return `https://listener-web.zubeyrbarre.workers.dev/m/${user.slug}/listen`
   }, [user])
 
   // Dismiss force stop modal
